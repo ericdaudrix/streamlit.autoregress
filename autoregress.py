@@ -11,6 +11,10 @@ from skforecast.recursive import ForecasterRecursive
 import plotly.express as px
 import plotly.graph_objects as go
 
+from skforecast.ForecasterAutoreg import ForecasterAutoreg
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+
 # Streamlit App Configuration
 st.title("Forecasting Application")
 st.sidebar.header("Configuration du modèle prédictif")
@@ -49,8 +53,12 @@ if uploaded_file:
 
     if st.button("Train Model"):
         # Train model
-        forecaster = ForecasterRecursive(regressor=LinearRegression(), lags=lags)
+        forecaster = ForecasterAutoreg(
+                 regressor = RandomForestRegressor(random_state=123),
+                 lags      = 15
+             )
         forecaster.fit(y=train['y'])
+
         st.success("Model trained successfully!")
 
         #test model
