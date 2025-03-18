@@ -3,6 +3,7 @@
 #===================================================#
 
 import streamlit as st
+st.write("Version de skforecast :", skforecast.__version__)
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
@@ -11,8 +12,7 @@ from skforecast.recursive import ForecasterRecursive
 import plotly.express as px
 import plotly.graph_objects as go
 
-from skforecast.ForecasterAutoreg.forecaster_autoreg import ForecasterAutoreg
-#from skforecast.ForecasterAutoreg import ForecasterAutoreg
+from skforecast.ForecasterAutoreg import ForecasterAutoreg
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 
