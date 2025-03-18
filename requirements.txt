@@ -1,5 +1,5 @@
 scikit-learn
-skforecast
+skforecast==0.14.0
 pandas
 numpy
 plotly
