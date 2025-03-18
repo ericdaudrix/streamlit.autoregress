@@ -15,8 +15,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 #from skforecast.ForecasterAutoreg import ForecasterAutoreg
-from skforecast.forecasting.ForecasterAutoreg import ForecasterAutoreg
-#from skforecast.ForecasterAutoreg.forecaster_autoreg import ForecasterAutoreg
+#from skforecast.forecasting.ForecasterAutoreg import ForecasterAutoreg
+from skforecast.ForecasterAutoreg.forecaster_autoreg import ForecasterAutoreg
 
 
 
