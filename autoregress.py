@@ -11,7 +11,8 @@ from skforecast.recursive import ForecasterRecursive
 import plotly.express as px
 import plotly.graph_objects as go
 
-from skforecast.ForecasterAutoreg import ForecasterAutoreg
+from skforecast.ForecasterAutoreg.forecaster_autoreg import ForecasterAutoreg
+#from skforecast.ForecasterAutoreg import ForecasterAutoreg
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 
