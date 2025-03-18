@@ -10,8 +10,8 @@ import numpy as np
 import skforecast
 
 #from skforecast.ForecasterAutoreg import ForecasterAutoreg  # ✅ Option 1
-from skforecast.forecasting.ForecasterAutoreg import ForecasterAutoreg  # ✅ Option 2
-#from skforecast.ForecasterAutoreg.forecaster_autoreg import ForecasterAutoreg  # ✅ Option 3
+#from skforecast.forecasting.ForecasterAutoreg import ForecasterAutoreg  # ✅ Option 2
+from skforecast.ForecasterAutoreg.forecaster_autoreg import ForecasterAutoreg  # ✅ Option 3
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 
