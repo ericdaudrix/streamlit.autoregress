@@ -8,8 +8,8 @@ import pandas as pd
 import numpy as np
 
 import skforecast
-st.write("Version de skforecast :", skforecast.__version__)
-st.write("Contenu de skforecast :", dir(skforecast))
+#st.write("Version de skforecast :", skforecast.__version__)
+#st.write("Contenu de skforecast :", dir(skforecast))
 from skforecast.ForecasterAutoreg import ForecasterAutoreg  # ✅ Option 1
 #from skforecast.forecasting.ForecasterAutoreg import ForecasterAutoreg  # ✅ Option 2
 #from skforecast.ForecasterAutoreg.forecaster_autoreg import ForecasterAutoreg  # ✅ Option 3
