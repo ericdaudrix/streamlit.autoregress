@@ -3,7 +3,6 @@
 #===================================================#
 
 import streamlit as st
-st.write("Version de skforecast :", skforecast.__version__)
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
