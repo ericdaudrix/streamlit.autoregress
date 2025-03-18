@@ -2,7 +2,7 @@
 # Eric Daudrix - Lycée Monnerville Cahors - CMQE IF #
 #===================================================#
 
-#import os
+import os
 #os.system("pip install --upgrade skforecast")
 import streamlit as st
 import pandas as pd
