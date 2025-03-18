@@ -54,13 +54,13 @@ if uploaded_file:
                 st.error("⚠️ Not enough training data. Try reducing `Training Steps`.")
             else:
                 # Train model
-                #forecaster = ForecasterAutoreg(
-                    #regressor=RandomForestRegressor(random_state=123),
-                    #lags=lags
-                #)
-
-                forecaster = RandomForestRegressor(n_estimators=100, random_state=42)
+                forecaster = ForecasterAutoreg(
+                    regressor=RandomForestRegressor(n_estimators=100, random_state=42),
+                    lags=lags
+                )
                 forecaster.fit(y=train['y'])
+
+            
 
                 st.success("✅ Model trained successfully!")
 
