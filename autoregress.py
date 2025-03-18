@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import skforecast
+st.write("Version de skforecast :", skforecast.__version__)
 from skforecast.recursive import ForecasterRecursive
 import plotly.express as px
 import plotly.graph_objects as go
