@@ -2,24 +2,15 @@
 # Eric Daudrix - Lycée Monnerville Cahors - CMQE IF #
 #===================================================#
 
-import os
-#os.system("pip install --upgrade skforecast")
+
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
-try:
-    import skforecast
-    st.write("Version de skforecast :", skforecast.__version__)
-except ImportError:
-    st.write("⚠️ skforecast n'est pas installé !")
 
-# Vérifier l'emplacement de skforecast
-os.system("pip show skforecast")
-
+import skforecast
 from skforecast.ForecasterAutoreg import ForecasterAutoreg
-
-
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
 
 import plotly.express as px
 import plotly.graph_objects as go
