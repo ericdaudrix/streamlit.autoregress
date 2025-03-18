@@ -1,3 +1,4 @@
+
 #===================================================#
 # Eric Daudrix - Lycée Monnerville Cahors - CMQE IF #
 #===================================================#
@@ -6,7 +7,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-from skforecast.ForecasterAutoreg import ForecasterAutoreg
+#from skforecast.ForecasterAutoreg import ForecasterAutoreg
+from skforecast.forecasting.ForecasterAutoreg import ForecasterAutoreg
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 
