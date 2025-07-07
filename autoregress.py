@@ -75,7 +75,7 @@ df['Fit'] = model.predict(X)
 # Prévision future
 horizon = st.sidebar.number_input("Horizon de prévision (jours)", 30, 365, 183)
 future_dates = df['Date'].max() + pd.to_timedelta(np.arange(1, horizon+1), unit='D')
-future_days = (future_dates - df['Date'].min()).dt.days.values.reshape(-1, 1)
+future_days = (future_dates - df['Date'].min()).days.reshape(-1, 1)
 future_pred = model.predict(future_days)
 df_future = pd.DataFrame({
     'Date': future_dates,
