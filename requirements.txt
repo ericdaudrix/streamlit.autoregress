@@ -3,3 +3,5 @@ skforecast==0.13.0
 pandas
 numpy
 plotly
+statsmodels
+prophet
