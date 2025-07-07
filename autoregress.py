@@ -1,89 +1,98 @@
-
-#===================================================#
-# Eric Daudrix - Lycée Monnerville Cahors - CMQE IF #
-#===================================================#
-
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.linear_model import LinearRegression
+from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit
 import plotly.graph_objects as go
 
-# Titre de l'application
+# --- Application Streamlit ---
 st.title("Prévision du temps de fonctionnement")
-st.sidebar.header("Paramètres")
+st.sidebar.header("Configuration")
 
-# Upload du fichier CSV
-uploaded_file = st.sidebar.file_uploader("Uploader un fichier CSV", type=["csv"] )
-if uploaded_file:
-    # Chargement et préparation des données
-    df = pd.read_csv(uploaded_file, sep=';')
-    df['Date'] = pd.to_datetime(df['Date'])
-    df = df.sort_values('Date')
-    st.subheader("Aperçu des données")
-    st.write(df)
+# Upload des données
+uploaded_file = st.sidebar.file_uploader("Uploader un fichier CSV (Date;Value)", type=["csv"])
+if not uploaded_file:
+    st.info("Merci d'uploader un CSV avec les colonnes `Date` et `Value` séparées par `;`.")
+    st.stop()
 
-    # Transformation de la date en nombre de jours
-    df['Days'] = (df['Date'] - df['Date'].min()).dt.days
-    X = df[['Days']]
-    y = df['Value']
+# Préparation des données
+df = pd.read_csv(uploaded_file, sep=';')
+df['Date'] = pd.to_datetime(df['Date'])
+df = df.sort_values('Date')
+st.subheader("Aperçu des données")
+st.write(df)
 
-    # Sélection du modèle
-    model_name = st.sidebar.selectbox("Modèle de régression", ["LinearRegression", "Ridge", "Lasso"] )
-    if model_name == "LinearRegression":
-        model = LinearRegression()
-    elif model_name == "Ridge":
-        model = Ridge()
-    else:
-        model = Lasso()
+df['Days'] = (df['Date'] - df['Date'].min()).dt.days
+X = df[['Days']]
+y = df['Value']
 
-    # Validation croisée temporelle
-    n_splits = st.sidebar.slider("Nombre de folds CV", min_value=2, max_value=10, value=5)
-    tscv = TimeSeriesSplit(n_splits=n_splits)
-    maes, rmses, r2s = [], [], []
-    for train_index, test_index in tscv.split(X):
-        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        maes.append(mean_absolute_error(y_test, y_pred))
-        rmses.append(np.sqrt(mean_squared_error(y_test, y_pred)))
-        r2s.append(r2_score(y_test, y_pred))
-
-    # Affichage des métriques
-    st.subheader("Métriques de validation croisée")
-    st.write(pd.DataFrame({
-        "MAE": maes,
-        "RMSE": rmses,
-        "R²": r2s
-    }))
-
-    # Entraînement sur l'ensemble des données
-    model.fit(X, y)
-    df['Prévision'] = model.predict(X)
-
-    # Choix de l'horizon de prévision
-    horizon = st.sidebar.number_input("Horizon de prévision (jours)", min_value=30, max_value=365, value=183)
-    last_day = df['Days'].max()
-    future_days = np.arange(last_day + 1, last_day + horizon + 1).reshape(-1, 1)
-    future_dates = df['Date'].max() + pd.to_timedelta(np.arange(1, horizon + 1), unit='D')
-    future_pred = model.predict(future_days)
-
-    # Visualisation interactive
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df['Date'], y=df['Value'], mode='lines+markers', name='Historique'))
-    fig.add_trace(go.Scatter(x=df['Date'], y=df['Prévision'], mode='lines', name='Fit'))
-    fig.add_trace(go.Scatter(x=future_dates, y=future_pred, mode='lines', name='Prévisions futures'))
-    fig.update_layout(
-        title="Prévision du temps de fonctionnement",
-        xaxis_title="Date",
-        yaxis_title="Temps de fonctionnement",
-        hovermode='x unified',
-        template='plotly_white'
-    )
-    st.subheader("Visualisation des résultats")
-    st.plotly_chart(fig, use_container_width=True)
+# Choix du modèle
+model_type = st.sidebar.selectbox("Modèle", ["LinearRegression", "MLPRegressor"])
+if model_type == "LinearRegression":
+    model = LinearRegression()
 else:
-    st.info("Veuillez uploader un fichier CSV avec les colonnes `Date` et `Value` séparées par `;`.")
+    # Paramètres MLP
+    n_layers = st.sidebar.slider("Nombre de couches cachées", 1, 5, 2)
+    size_layers = st.sidebar.slider("Neurones par couche", 10, 200, 50)
+    hidden_layer_sizes = tuple([size_layers] * n_layers)
+    activation = st.sidebar.selectbox("Fonction d'activation", ["relu", "tanh", "logistic"])
+    alpha = st.sidebar.slider("Alpha (L2 penalty)", 0.0001, 1.0, 0.0001, format="%f")
+    max_iter = st.sidebar.number_input("Max iterations", 100, 1000, 200)
+    model = MLPRegressor(
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        alpha=alpha,
+        max_iter=max_iter,
+        random_state=42
+    )
+
+# Validation croisée temporelle
+n_splits = st.sidebar.slider("Nombre de folds CV", 2, 10, 5)
+tscv = TimeSeriesSplit(n_splits=n_splits)
+maes, rmses, r2s = [], [], []
+for train_idx, test_idx in tscv.split(X):
+    X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+    y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    maes.append(mean_absolute_error(y_test, y_pred))
+    rmses.append(np.sqrt(mean_squared_error(y_test, y_pred)))
+    r2s.append(r2_score(y_test, y_pred))
+
+st.subheader("Métriques de validation croisée")
+st.write(pd.DataFrame({
+    "MAE": maes,
+    "RMSE": rmses,
+    "R²": r2s
+}))
+
+# Entraînement final
+model.fit(X, y)
+df['Fit'] = model.predict(X)
+
+# Prévision future
+horizon = st.sidebar.number_input("Horizon de prévision (jours)", 30, 365, 183)
+future_dates = df['Date'].max() + pd.to_timedelta(np.arange(1, horizon+1), unit='D')
+future_days = (future_dates - df['Date'].min()).dt.days.values.reshape(-1, 1)
+future_pred = model.predict(future_days)
+df_future = pd.DataFrame({
+    'Date': future_dates,
+    'Prediction': future_pred
+})
+
+# Visualisation
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=df['Date'], y=df['Value'], mode='lines+markers', name='Historique'))
+fig.add_trace(go.Scatter(x=df['Date'], y=df['Fit'], mode='lines', name='Fit'))
+fig.add_trace(go.Scatter(x=df_future['Date'], y=df_future['Prediction'], mode='lines', name='Prévision future'))
+fig.update_layout(
+    title="Prévision du temps de fonctionnement",
+    xaxis_title="Date",
+    yaxis_title="Value",
+    hovermode='x unified',
+    template='plotly_white'
+)
+st.subheader("Visualisation")
+st.plotly_chart(fig, use_container_width=True)
