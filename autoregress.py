@@ -9,31 +9,32 @@ import plotly.graph_objects as go
 
 # --- Application Streamlit ---
 st.title("Prévision du temps de fonctionnement")
-st.sidebar.header("Configuration")
+st.sidebar.header("Configuration du modèle")
 
-# Upload des données
-uploaded_file = st.sidebar.file_uploader("Uploader un fichier CSV (Date;Value)", type=["csv"])
+# Upload du fichier CSV
+uploaded_file = st.sidebar.file_uploader("Uploader un fichier CSV (colonnes: Date;Value)", type=["csv"])
 if not uploaded_file:
-    st.info("Merci d'uploader un CSV avec les colonnes `Date` et `Value` séparées par `;`.")
+    st.info("Merci d'uploader un fichier CSV avec les colonnes `Date` et `Value` séparées par `;`.")
     st.stop()
 
-# Préparation des données
+# Chargement et aperçu
 df = pd.read_csv(uploaded_file, sep=';')
 df['Date'] = pd.to_datetime(df['Date'])
 df = df.sort_values('Date')
 st.subheader("Aperçu des données")
 st.write(df)
 
+# Feature temporelle
 df['Days'] = (df['Date'] - df['Date'].min()).dt.days
 X = df[['Days']]
 y = df['Value']
 
-# Choix du modèle
-model_type = st.sidebar.selectbox("Modèle", ["LinearRegression", "MLPRegressor"])
+# Sélection du modèle
+model_type = st.sidebar.selectbox("Sélectionnez un modèle", ["LinearRegression", "MLPRegressor"])
 if model_type == "LinearRegression":
     model = LinearRegression()
 else:
-    # Paramètres MLP
+    # Paramètres du MLP
     n_layers = st.sidebar.slider("Nombre de couches cachées", 1, 5, 2)
     size_layers = st.sidebar.slider("Neurones par couche", 10, 200, 50)
     hidden_layer_sizes = tuple([size_layers] * n_layers)
@@ -68,11 +69,34 @@ st.write(pd.DataFrame({
     "R²": r2s
 }))
 
-# Entraînement final
+# Entraînement final sur l'ensemble des données
 model.fit(X, y)
 df['Fit'] = model.predict(X)
 
 # Prévision future
 horizon = st.sidebar.number_input("Horizon de prévision (jours)", 30, 365, 183)
 future_dates = df['Date'].max() + pd.to_timedelta(np.arange(1, horizon+1), unit='D')
-        # Calcul du nombre de jours pour les dates futuresfuture_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).values.reshape(-1, 1)
+# Calcul explicite des jours futurs
+future_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).reshape(-1, 1)
+future_pred = model.predict(future_days)
+df_future = pd.DataFrame({
+    'Date': future_dates,
+    'Prediction': future_pred
+})
+
+# Visualisation interactive
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=df['Date'], y=df['Value'], mode='lines+markers', name='Historique'))
+fig.add_trace(go.Scatter(x=df['Date'], y=df['Fit'], mode='lines', name='Fit'))
+fig.add_trace(go.Scatter(x=df_future['Date'], y=df_future['Prediction'], mode='lines', name='Prévisions futures'))
+fig.update_layout(
+    title="Prévision du temps de fonctionnement",
+    xaxis_title="Date",
+    yaxis_title="Valeur",
+    hovermode='x unified',
+    template='plotly_white'
+)
+
+# Affichage du graphique
+st.subheader("Visualisation des résultats")
+st.plotly_chart(fig, use_container_width=True)
