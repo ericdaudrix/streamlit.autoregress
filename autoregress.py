@@ -40,7 +40,7 @@ use_prophet = (type_model == 'Prophet')
 
 # Si Prophet, toggles de saisonnalités
 if use_prophet:
-    yearly = st.sidebar.checkbox("Saisonnalité annuelle", value=True)
+    yearly = st.sidebar.checkbox("Saisonnalité annuelle", value=False)
     weekly = st.sidebar.checkbox("Saisonnalité hebdomadaire", value=False)
     daily = st.sidebar.checkbox("Saisonnalité journalière", value=False)
     hourly = st.sidebar.checkbox("Saisonnalité horaire", value=False)
