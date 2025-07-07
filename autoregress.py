@@ -75,24 +75,5 @@ df['Fit'] = model.predict(X)
 # Prévision future
 horizon = st.sidebar.number_input("Horizon de prévision (jours)", 30, 365, 183)
 future_dates = df['Date'].max() + pd.to_timedelta(np.arange(1, horizon+1), unit='D')
-future_days = (future_dates - df['Date'].min()).days.reshape(-1, 1)
-future_pred = model.predict(future_days)
-df_future = pd.DataFrame({
-    'Date': future_dates,
-    'Prediction': future_pred
-})
-
-# Visualisation
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=df['Date'], y=df['Value'], mode='lines+markers', name='Historique'))
-fig.add_trace(go.Scatter(x=df['Date'], y=df['Fit'], mode='lines', name='Fit'))
-fig.add_trace(go.Scatter(x=df_future['Date'], y=df_future['Prediction'], mode='lines', name='Prévision future'))
-fig.update_layout(
-    title="Prévision du temps de fonctionnement",
-    xaxis_title="Date",
-    yaxis_title="Value",
-    hovermode='x unified',
-    template='plotly_white'
-)
-st.subheader("Visualisation")
-st.plotly_chart(fig, use_container_width=True)
+        # Calcul du nombre de jours pour les dates futures
+        future_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).values.reshape(-1, 1)
