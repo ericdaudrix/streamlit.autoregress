@@ -40,7 +40,7 @@ use_prophet = (type_model == 'Prophet')
 
 # Si Prophet, toggles de saisonnalités
 if use_prophet:
-    yearly = st.sidebar.checkbox("Saisonnalité annuelle", value=False)
+    yearly = st.sidebar.checkbox("Saisonnalité annuelle", value=True)
     weekly = st.sidebar.checkbox("Saisonnalité hebdomadaire", value=False)
     daily = st.sidebar.checkbox("Saisonnalité journalière", value=False)
     hourly = st.sidebar.checkbox("Saisonnalité horaire", value=False)
@@ -88,7 +88,8 @@ else:
 # Visualisation interactive avec intervalle de confiance
 fig = go.Figure()
 # Historique
-g fig.add_trace(go.Scatter(
+# Historique
+fig.add_trace(go.Scatter(
     x=df['Date'], y=df['Value'], mode='markers', name='Historique'
 ))
 # Fit
