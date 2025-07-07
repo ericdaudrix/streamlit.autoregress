@@ -75,5 +75,4 @@ df['Fit'] = model.predict(X)
 # Prévision future
 horizon = st.sidebar.number_input("Horizon de prévision (jours)", 30, 365, 183)
 future_dates = df['Date'].max() + pd.to_timedelta(np.arange(1, horizon+1), unit='D')
-        # Calcul du nombre de jours pour les dates futures
-        future_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).values.reshape(-1, 1)
+        # Calcul du nombre de jours pour les dates futuresfuture_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).values.reshape(-1, 1)
