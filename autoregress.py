@@ -6,77 +6,84 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-
-from skforecast.ForecasterAutoreg import ForecasterAutoreg
-#from skforecast.forecasting.ForecasterAutoreg import ForecasterAutoreg
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
-
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import TimeSeriesSplit
 import plotly.graph_objects as go
 
-# Streamlit App Configuration
-st.set_page_config(page_title="Forecasting App", layout="wide")
-st.title("📈 Forecasting Application")
-st.sidebar.header("⚙️ Configuration du modèle prédictif")
+# Titre de l'application
+st.title("Prévision du temps de fonctionnement")
+st.sidebar.header("Paramètres")
 
-# Sidebar inputs for parameters
-data_freq = st.sidebar.number_input("📊 Data Frequency (seconds)", min_value=1, value=60, step=1)
-steps = st.sidebar.number_input("📉 Training Steps", min_value=1, value=120, step=1)
-lags = st.sidebar.number_input("⏳ Lags", min_value=1, value=15, step=1)
-pred_steps = st.sidebar.number_input("🔮 Prediction Steps", min_value=1, value=120, step=1)
-
-# File upload
-uploaded_file = st.file_uploader("📂 Upload your CSV file", type=["csv"])
-
+# Upload du fichier CSV
+uploaded_file = st.sidebar.file_uploader("Uploader un fichier CSV", type=["csv"] )
 if uploaded_file:
-    try:
-        # Load data
-        data = pd.read_csv(uploaded_file, sep=None, engine='python')
-        st.write("📊 **Data Preview:**", data.head())
+    # Chargement et préparation des données
+    df = pd.read_csv(uploaded_file, sep=';')
+    df['Date'] = pd.to_datetime(df['Date'])
+    df = df.sort_values('Date')
+    st.subheader("Aperçu des données")
+    st.write(df)
 
-        # Data preparation
-        data.rename(columns={data.columns[0]: 'date', data.columns[1]: 'y'}, inplace=True)
-        data['date'] = pd.to_datetime(data['date'])
-        data.set_index('date', inplace=True)
-        
-        # Resampling (to avoid missing timestamps)
-        data = data.resample(f'{data_freq}s').mean().interpolate()
+    # Transformation de la date en nombre de jours
+    df['Days'] = (df['Date'] - df['Date'].min()).dt.days
+    X = df[['Days']]
+    y = df['Value']
 
-        # Display data summary
-        st.write("📈 **Data Summary:**", data.describe())
+    # Sélection du modèle
+    model_name = st.sidebar.selectbox("Modèle de régression", ["LinearRegression", "Ridge", "Lasso"] )
+    if model_name == "LinearRegression":
+        model = LinearRegression()
+    elif model_name == "Ridge":
+        model = Ridge()
+    else:
+        model = Lasso()
 
-        # Split data
-        train = data[:-steps]
-        test = data[-steps:]
+    # Validation croisée temporelle
+    n_splits = st.sidebar.slider("Nombre de folds CV", min_value=2, max_value=10, value=5)
+    tscv = TimeSeriesSplit(n_splits=n_splits)
+    maes, rmses, r2s = [], [], []
+    for train_index, test_index in tscv.split(X):
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        maes.append(mean_absolute_error(y_test, y_pred))
+        rmses.append(np.sqrt(mean_squared_error(y_test, y_pred)))
+        r2s.append(r2_score(y_test, y_pred))
 
-        if st.button("🚀 Train Model"):
-            if train.empty:
-                st.error("⚠️ Not enough training data. Try reducing `Training Steps`.")
-            else:
-                # Train model
-                forecaster = ForecasterAutoreg(
-                    regressor=RandomForestRegressor(n_estimators=100, random_state=42),
-                    lags=lags
-                )
-                forecaster.fit(y=train['y'])
+    # Affichage des métriques
+    st.subheader("Métriques de validation croisée")
+    st.write(pd.DataFrame({
+        "MAE": maes,
+        "RMSE": rmses,
+        "R²": r2s
+    }))
 
-            
+    # Entraînement sur l'ensemble des données
+    model.fit(X, y)
+    df['Prévision'] = model.predict(X)
 
-                st.success("✅ Model trained successfully!")
+    # Choix de l'horizon de prévision
+    horizon = st.sidebar.number_input("Horizon de prévision (jours)", min_value=30, max_value=365, value=183)
+    last_day = df['Days'].max()
+    future_days = np.arange(last_day + 1, last_day + horizon + 1).reshape(-1, 1)
+    future_dates = df['Date'].max() + pd.to_timedelta(np.arange(1, horizon + 1), unit='D')
+    future_pred = model.predict(future_days)
 
-                # Test model
-                predictions = forecaster.predict(steps=pred_steps)
-
-                # Plot predictions vs actual with Plotly
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=train.index, y=train['y'], mode='lines', name='Train data', line=dict(color='green')))
-                fig.add_trace(go.Scatter(x=test.index, y=test['y'], mode='lines', name='Test data', line=dict(color='blue')))
-                fig.add_trace(go.Scatter(x=predictions.index, y=predictions.values, mode='lines', name='Predictions', line=dict(color='red')))
-                fig.update_layout(title="📊 Predictions vs Actual", xaxis_title="Date", yaxis_title="Value")
-                st.plotly_chart(fig, use_container_width=True)
-
-    except Exception as e:
-        st.error(f"⚠️ Error loading file: {e}")
-
+    # Visualisation interactive
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['Value'], mode='lines+markers', name='Historique'))
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['Prévision'], mode='lines', name='Fit'))
+    fig.add_trace(go.Scatter(x=future_dates, y=future_pred, mode='lines', name='Prévisions futures'))
+    fig.update_layout(
+        title="Prévision du temps de fonctionnement",
+        xaxis_title="Date",
+        yaxis_title="Temps de fonctionnement",
+        hovermode='x unified',
+        template='plotly_white'
+    )
+    st.subheader("Visualisation des résultats")
+    st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("📌 Please upload a CSV file to proceed.")
+    st.info("Veuillez uploader un fichier CSV avec les colonnes `Date` et `Value` séparées par `;`.")
