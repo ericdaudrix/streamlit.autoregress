@@ -26,7 +26,7 @@ df = df.sort_values('Date')
 st.subheader("Aperçu des données")
 st.write(df)
 
-# Feature pour régression
+# Création de feature pour régression
 df['Days'] = (df['Date'] - df['Date'].min()).dt.days
 X = df[['Days']]
 y = df['Value']
@@ -45,9 +45,12 @@ if use_prophet:
     daily = st.sidebar.checkbox("Saisonnalité journalière", value=False)
     hourly = st.sidebar.checkbox("Saisonnalité horaire", value=False)
 
-# Entraînement complet et prévisions
-horizon = st.sidebar.number_input("Horizon de prévision (jours)", 30, 365, 183)
+# Horizon de prévision
+horizon = st.sidebar.number_input(
+    "Horizon de prévision (jours)", 30, 365, 183
+)
 
+# Entraînement complet et prévisions
 if use_prophet:
     # Préparer DataFrame pour Prophet
     prop_full = df.rename(columns={'Date':'ds','Value':'y'})[['ds','y']]
@@ -60,43 +63,62 @@ if use_prophet:
         m.add_seasonality(name='hourly', period=24, fourier_order=5)
     m.fit(prop_full)
 
-    # Fit et forecast
-    df['Fit'] = m.predict(prop_full)['yhat']
-    future_full = m.make_future_dataframe(periods=horizon, freq='D')
-    forecast = m.predict(future_full)
-    future = (
-        forecast[['ds','yhat']]
-        .tail(horizon)
-        .rename(columns={'ds':'Date','yhat':'Prediction'})
-    )
+    # Fit et forecast avec intervalles
+    forecast = m.predict(m.make_future_dataframe(periods=horizon, freq='D'))
+    df['Fit'] = forecast.set_index('ds')['yhat'][:len(df)].values
+    future = forecast[['ds','yhat','yhat_lower','yhat_upper']].tail(horizon)
+    future = future.rename(columns={'ds':'Date','yhat':'Prediction','yhat_lower':'Lower','yhat_upper':'Upper'})
 else:
     # Régression linéaire
     model = LinearRegression()
     model.fit(X, y)
     df['Fit'] = model.predict(X)
 
+    # Calculer écart-type des résidus pour intervalle
+    resid_std = (y - df['Fit']).std()
     # Prévision future
     last_date = df['Date'].max()
     future_dates = last_date + pd.to_timedelta(np.arange(1, horizon+1), unit='D')
-    future_days = (
-        (future_dates - df['Date'].min()) / np.timedelta64(1, 'D')
-    ).values.reshape(-1, 1)
+    future_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).values.reshape(-1, 1)
     preds = model.predict(future_days)
-    future = pd.DataFrame({'Date': future_dates, 'Prediction': preds})
+    # bornes à 95%
+    lower = preds - 1.96 * resid_std
+    upper = preds + 1.96 * resid_std
+    future = pd.DataFrame({
+        'Date': future_dates,
+        'Prediction': preds,
+        'Lower': lower,
+        'Upper': upper
+    })
 
-# Visualisation interactive
+# Visualisation interactive avec intervalle de confiance
 fig = go.Figure()
+# Historique
 fig.add_trace(go.Scatter(
-    x=df['Date'], y=df['Value'], mode='lines+markers', name='Historique'
+    x=df['Date'], y=df['Value'], mode='markers', name='Historique'
 ))
+# Fit
 fig.add_trace(go.Scatter(
     x=df['Date'], y=df['Fit'], mode='lines', name='Fit'
 ))
+# Intervalle historique / pas nécessaire ici
+# Prévisions futures
 fig.add_trace(go.Scatter(
-    x=future['Date'], y=future['Prediction'], mode='lines', name='Prévisions futures'
+    x=future['Date'], y=future['Upper'],
+    mode='lines', line=dict(width=0), showlegend=False
 ))
+fig.add_trace(go.Scatter(
+    x=future['Date'], y=future['Lower'],
+    mode='lines', fill='tonexty', fillcolor='rgba(0,100,80,0.2)',
+    line=dict(width=0), name='Intervalle 95%'
+))
+# Courbe de prévision
+fig.add_trace(go.Scatter(
+    x=future['Date'], y=future['Prediction'], mode='lines', name='Prévisions'
+))
+
 fig.update_layout(
-    title="Prévision du temps de fonctionnement",
+    title="Prévision du temps de fonctionnement avec intervalle de confiance",
     xaxis_title="Date",
     yaxis_title="Valeur",
     hovermode='x unified',
