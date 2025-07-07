@@ -12,48 +12,66 @@ st.title("Prévision du temps de fonctionnement")
 st.sidebar.header("Configuration du modèle")
 
 # Upload du fichier CSV
-uploaded_file = st.sidebar.file_uploader("Uploader un fichier CSV (colonnes: Date;Value)", type=["csv"])
+uploaded_file = st.sidebar.file_uploader(
+    "Uploader un fichier CSV (colonnes: Date;Value)", type=["csv"]
+)
 if not uploaded_file:
-    st.info("Merci d'uploader un fichier CSV avec les colonnes `Date` et `Value` séparées par `;`.")
+    st.info(
+        "Merci d'uploader un fichier CSV avec les colonnes `Date` et `Value` séparées par `;`."
+    )
     st.stop()
 
-# Chargement et préparation des données
+# Chargement des données
 df = pd.read_csv(uploaded_file, sep=';')
 df['Date'] = pd.to_datetime(df['Date'])
 df = df.sort_values('Date')
 st.subheader("Aperçu des données")
 st.write(df)
 
-# Feature pour régression
+# Feature numérique pour régression
 df['Days'] = (df['Date'] - df['Date'].min()).dt.days
 X = df[['Days']]
 y = df['Value']
 
-# Choix du modèle
-type_model = st.sidebar.selectbox("Sélectionnez un modèle", ["LinearRegression", "Prophet"])
-use_prophet = (type_model == "Prophet")
+# Sélection du modèle
+type_model = st.sidebar.selectbox(
+    "Sélectionnez un modèle",
+    ["LinearRegression", "Prophet"]
+)
+use_prophet = (type_model == 'Prophet')
 
-# Paramètres pour Prophet
+# Si Prophet, toggles de saisonnalités
 if use_prophet:
-    yearly = st.sidebar.checkbox("Activer la saisonnalité annuelle", value=True)
-    weekly = st.sidebar.checkbox("Activer la saisonnalité hebdomadaire", value=False)
+    yearly = st.sidebar.checkbox("Saisonnalité annuelle", value=True)
+    weekly = st.sidebar.checkbox("Saisonnalité hebdomadaire", value=False)
+    daily = st.sidebar.checkbox("Saisonnalité journalière", value=False)
+    hourly = st.sidebar.checkbox("Saisonnalité horaire", value=False)
 
 # Validation croisée temporelle
 n_splits = st.sidebar.slider("Nombre de folds CV", 2, 10, 5)
-maes, rmses, r2s = [], [], []
+metrics = {'MAE': [], 'RMSE': [], 'R2': []}
+
 tscv = TimeSeriesSplit(n_splits=n_splits)
 for train_idx, test_idx in tscv.split(df):
     df_train = df.iloc[train_idx]
     df_test = df.iloc[test_idx]
     if use_prophet:
+        # Préparer pour Prophet
         prop_train = df_train.rename(columns={'Date':'ds','Value':'y'})[['ds','y']]
-        m = Prophet(yearly_seasonality=yearly, weekly_seasonality=weekly, daily_seasonality=False)
+        m = Prophet(
+            yearly_seasonality=yearly,
+            weekly_seasonality=weekly,
+            daily_seasonality=daily
+        )
+        if hourly:
+            m.add_seasonality(name='hourly', period=24, fourier_order=5)
         m.fit(prop_train)
         future = m.make_future_dataframe(periods=len(df_test), freq='D')
         forecast = m.predict(future)
         y_pred = forecast['yhat'].iloc[-len(df_test):].values
         y_true = df_test['Value'].values
     else:
+        # Régression linéaire simple
         model = LinearRegression()
         X_train = df_train[['Days']]
         y_train = df_train['Value']
@@ -61,38 +79,65 @@ for train_idx, test_idx in tscv.split(df):
         y_true = df_test['Value'].values
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
-    maes.append(mean_absolute_error(y_true, y_pred))
-    rmses.append(np.sqrt(mean_squared_error(y_true, y_pred)))
-    r2s.append(r2_score(y_true, y_pred))
+
+    metrics['MAE'].append(mean_absolute_error(y_true, y_pred))
+    metrics['RMSE'].append(np.sqrt(mean_squared_error(y_true, y_pred)))
+    metrics['R2'].append(r2_score(y_true, y_pred))
 
 st.subheader("Métriques de validation croisée")
-st.write(pd.DataFrame({"MAE": maes, "RMSE": rmses, "R²": r2s}))
+st.write(pd.DataFrame(metrics))
 
-# Entraînement final et prévisions
+# Entraînement complet et prévisions
 horizon = st.sidebar.number_input("Horizon de prévision (jours)", 30, 365, 183)
+
 if use_prophet:
     prop_full = df.rename(columns={'Date':'ds','Value':'y'})[['ds','y']]
-    m = Prophet(yearly_seasonality=yearly, weekly_seasonality=weekly, daily_seasonality=False)
+    m = Prophet(
+        yearly_seasonality=yearly,
+        weekly_seasonality=weekly,
+        daily_seasonality=daily
+    )
+    if hourly:
+        m.add_seasonality(name='hourly', period=24, fourier_order=5)
     m.fit(prop_full)
     df['Fit'] = m.predict(prop_full)['yhat']
     future_full = m.make_future_dataframe(periods=horizon, freq='D')
     forecast = m.predict(future_full)
-    future = forecast[['ds','yhat']].tail(horizon).rename(columns={'ds':'Date','yhat':'Prediction'})
+    future = (
+        forecast[['ds','yhat']]
+        .tail(horizon)
+        .rename(columns={'ds':'Date','yhat':'Prediction'})
+    )
 else:
     model = LinearRegression()
     model.fit(X, y)
     df['Fit'] = model.predict(X)
     last_date = df['Date'].max()
     future_dates = last_date + pd.to_timedelta(np.arange(1, horizon+1), unit='D')
-    future_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).values.reshape(-1, 1)
+    future_days = (
+        (future_dates - df['Date'].min()) / np.timedelta64(1, 'D')
+    ).values.reshape(-1, 1)
     preds = model.predict(future_days)
     future = pd.DataFrame({'Date': future_dates, 'Prediction': preds})
 
 # Visualisation interactive
 fig = go.Figure()
-fig.add_trace(go.Scatter(x=df['Date'], y=df['Value'], mode='lines+markers', name='Historique'))
-fig.add_trace(go.Scatter(x=df['Date'], y=df['Fit'], mode='lines', name='Fit'))
-fig.add_trace(go.Scatter(x=future['Date'], y=future['Prediction'], mode='lines', name='Prévisions futures'))
-fig.update_layout(title="Prévision du temps de fonctionnement", xaxis_title="Date", yaxis_title="Valeur", hovermode='x unified', template='plotly_white')
+fig.add_trace(go.Scatter(
+    x=df['Date'], y=df['Value'], mode='lines+markers', name='Historique'
+))
+fig.add_trace(go.Scatter(
+    x=df['Date'], y=df['Fit'], mode='lines', name='Fit'
+))
+fig.add_trace(go.Scatter(
+    x=future['Date'], y=future['Prediction'], mode='lines', name='Prévisions futures'
+))
+fig.update_layout(
+    title="Prévision du temps de fonctionnement",
+    xaxis_title="Date",
+    yaxis_title="Valeur",
+    hovermode='x unified',
+    template='plotly_white'
+)
+
 st.subheader("Visualisation des résultats")
 st.plotly_chart(fig, use_container_width=True)
