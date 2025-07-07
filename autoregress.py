@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from prophet import Prophet
 
 # --- Application Streamlit ---
-st.title("Prévision du temps de fonctionnement")
+st.title("App IA Prévisionnelle")
 st.sidebar.header("Configuration du modèle")
 
 # Upload du fichier CSV
@@ -40,7 +40,7 @@ use_prophet = (type_model == 'Prophet')
 
 # Si Prophet, toggles de saisonnalités
 if use_prophet:
-    yearly = st.sidebar.checkbox("Saisonnalité annuelle", value=True)
+    yearly = st.sidebar.checkbox("Saisonnalité annuelle", value=False)
     weekly = st.sidebar.checkbox("Saisonnalité hebdomadaire", value=False)
     daily = st.sidebar.checkbox("Saisonnalité journalière", value=False)
     hourly = st.sidebar.checkbox("Saisonnalité horaire", value=False)
@@ -94,7 +94,7 @@ fig.add_trace(go.Scatter(
 ))
 # Fit
 fig.add_trace(go.Scatter(
-    x=df['Date'], y=df['Fit'], mode='lines', name='Fit'
+    x=df['Date'], y=df['Fit'], mode='lines', name='Entrainement'
 ))
 # Intervalle de confiance
 ci_x = list(future['Date']) + list(future['Date'][::-1])
