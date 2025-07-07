@@ -1,3 +1,8 @@
+
+#===================================================#
+# Eric Daudrix - Lycée Monnerville Cahors - CMQE IF #
+#===================================================#
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -11,7 +16,7 @@ st.title("Prévision du temps de fonctionnement")
 st.sidebar.header("Paramètres")
 
 # Upload du fichier CSV
-uploaded_file = st.sidebar.file_uploader("Uploader un fichier CSV", type=["csv"])
+uploaded_file = st.sidebar.file_uploader("Uploader un fichier CSV", type=["csv"] )
 if uploaded_file:
     # Chargement et préparation des données
     df = pd.read_csv(uploaded_file, sep=';')
@@ -26,7 +31,7 @@ if uploaded_file:
     y = df['Value']
 
     # Sélection du modèle
-    model_name = st.sidebar.selectbox("Modèle de régression", ["LinearRegression", "Ridge", "Lasso"])
+    model_name = st.sidebar.selectbox("Modèle de régression", ["LinearRegression", "Ridge", "Lasso"] )
     if model_name == "LinearRegression":
         model = LinearRegression()
     elif model_name == "Ridge":
@@ -65,27 +70,19 @@ if uploaded_file:
     future_days = np.arange(last_day + 1, last_day + horizon + 1).reshape(-1, 1)
     future_dates = df['Date'].max() + pd.to_timedelta(np.arange(1, horizon + 1), unit='D')
     future_pred = model.predict(future_days)
-    df_future = pd.DataFrame({'Date': future_dates, 'Prediction': future_pred})
 
     # Visualisation interactive
     fig = go.Figure()
-    # Tracé historique
     fig.add_trace(go.Scatter(x=df['Date'], y=df['Value'], mode='lines+markers', name='Historique'))
-    # Tracé modèle sur historique
-    fig.add_trace(go.Scatter(x=df['Date'], y=df['Prediction'], mode='lines', name='Modèle (historique)', line=dict(dash='dash')))
-    # Tracé prévisions futures
-    fig.add_trace(go.Scatter(x=df_future['Date'], y=df_future['Prediction'], mode='lines', name='Prévision 6 mois'))
-
-    # Mise en forme
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['Prévision'], mode='lines', name='Fit'))
+    fig.add_trace(go.Scatter(x=future_dates, y=future_pred, mode='lines', name='Prévisions futures'))
     fig.update_layout(
-        title='Prévision du temps de fonctionnement (régression linéaire)',
-        xaxis_title='Date',
-        yaxis_title='Temps de fonctionnement',
+        title="Prévision du temps de fonctionnement",
+        xaxis_title="Date",
+        yaxis_title="Temps de fonctionnement",
         hovermode='x unified',
         template='plotly_white'
     )
-
-    # Affichage
     st.subheader("Visualisation des résultats")
     st.plotly_chart(fig, use_container_width=True)
 else:
