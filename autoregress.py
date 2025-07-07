@@ -52,7 +52,6 @@ horizon = st.sidebar.number_input(
 
 # Entraînement complet et prévisions
 if use_prophet:
-    # Préparer DataFrame pour Prophet
     prop_full = df.rename(columns={'Date':'ds','Value':'y'})[['ds','y']]
     m = Prophet(
         yearly_seasonality=yearly,
@@ -63,25 +62,20 @@ if use_prophet:
         m.add_seasonality(name='hourly', period=24, fourier_order=5)
     m.fit(prop_full)
 
-    # Fit et forecast avec intervalles
     forecast = m.predict(m.make_future_dataframe(periods=horizon, freq='D'))
     df['Fit'] = forecast.set_index('ds')['yhat'][:len(df)].values
     future = forecast[['ds','yhat','yhat_lower','yhat_upper']].tail(horizon)
-    future = future.rename(columns={'ds':'Date','yhat':'Prediction','yhat_lower':'Lower','yhat_upper':'Upper'})
+    future = future.rename(columns={'ds':'Date', 'yhat':'Prediction', 'yhat_lower':'Lower', 'yhat_upper':'Upper'})
 else:
-    # Régression linéaire
     model = LinearRegression()
     model.fit(X, y)
     df['Fit'] = model.predict(X)
-
-    # Calculer écart-type des résidus pour intervalle
+    # Estimation de l'écart type des résidus
     resid_std = (y - df['Fit']).std()
-    # Prévision future
     last_date = df['Date'].max()
     future_dates = last_date + pd.to_timedelta(np.arange(1, horizon+1), unit='D')
     future_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).values.reshape(-1, 1)
     preds = model.predict(future_days)
-    # bornes à 95%
     lower = preds - 1.96 * resid_std
     upper = preds + 1.96 * resid_std
     future = pd.DataFrame({
@@ -94,25 +88,26 @@ else:
 # Visualisation interactive avec intervalle de confiance
 fig = go.Figure()
 # Historique
-fig.add_trace(go.Scatter(
+g fig.add_trace(go.Scatter(
     x=df['Date'], y=df['Value'], mode='markers', name='Historique'
 ))
 # Fit
 fig.add_trace(go.Scatter(
     x=df['Date'], y=df['Fit'], mode='lines', name='Fit'
 ))
-# Intervalle historique / pas nécessaire ici
-# Prévisions futures
+# Intervalle de confiance
+ci_x = list(future['Date']) + list(future['Date'][::-1])
+ci_y = list(future['Upper']) + list(future['Lower'][::-1])
 fig.add_trace(go.Scatter(
-    x=future['Date'], y=future['Upper'],
-    mode='lines', line=dict(width=0), showlegend=False
+    x=ci_x,
+    y=ci_y,
+    fill='toself',
+    fillcolor='rgba(0,100,80,0.2)',
+    line=dict(width=0),
+    hoverinfo='skip',
+    name='Intervalle 95%'
 ))
-fig.add_trace(go.Scatter(
-    x=future['Date'], y=future['Lower'],
-    mode='lines', fill='tonexty', fillcolor='rgba(0,100,80,0.2)',
-    line=dict(width=0), name='Intervalle 95%'
-))
-# Courbe de prévision
+# Prévisions
 fig.add_trace(go.Scatter(
     x=future['Date'], y=future['Prediction'], mode='lines', name='Prévisions'
 ))
