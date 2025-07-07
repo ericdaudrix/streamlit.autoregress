@@ -1,3 +1,6 @@
+# Requirements: streamlit, pandas, numpy, scikit-learn, plotly, statsmodels, prophet
+# Install with: pip install streamlit pandas numpy scikit-learn plotly statsmodels prophet
+
 import streamlit as st
 import pandas as pd
 import numpy as np
