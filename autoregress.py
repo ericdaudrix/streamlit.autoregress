@@ -17,14 +17,14 @@ if not uploaded_file:
     st.info("Merci d'uploader un fichier CSV avec les colonnes `Date` et `Value` séparées par `;`.")
     st.stop()
 
-# Chargement et aperçu
+# Chargement et aperçu des données
 df = pd.read_csv(uploaded_file, sep=';')
 df['Date'] = pd.to_datetime(df['Date'])
 df = df.sort_values('Date')
 st.subheader("Aperçu des données")
 st.write(df)
 
-# Feature temporelle
+# Création de la feature temporelle
 df['Days'] = (df['Date'] - df['Date'].min()).dt.days
 X = df[['Days']]
 y = df['Value']
@@ -77,7 +77,8 @@ df['Fit'] = model.predict(X)
 horizon = st.sidebar.number_input("Horizon de prévision (jours)", 30, 365, 183)
 future_dates = df['Date'].max() + pd.to_timedelta(np.arange(1, horizon+1), unit='D')
 # Calcul explicite des jours futurs
-future_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).reshape(-1, 1)
+future_days = ((future_dates - df['Date'].min()) / np.timedelta64(1, 'D')).values.reshape(-1, 1)
+# Prédiction
 future_pred = model.predict(future_days)
 df_future = pd.DataFrame({
     'Date': future_dates,
