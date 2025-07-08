@@ -114,7 +114,7 @@ fig.add_trace(go.Scatter(
 ))
 
 fig.update_layout(
-    title="Prévision du temps de fonctionnement avec intervalle de confiance",
+    title="Prévision  avec intervalle de confiance",
     xaxis_title="Date",
     yaxis_title="Valeur",
     hovermode='x unified',
